@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Audio Extractor with Playlist</title>
+    <style>
+        #playerControls {
+            display: none;
+            margin-top: 20px;
+        }
+    body{ text-align:center;}
+
+        #progressBar {
+            width: 100%;
+            height: 10px;
+            background-color: #e0e0e0;
+            border-radius: 5px;
+            margin-top: 10px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        #progress {
+            width: 0%;
+            height: 100%;
+            background-color: #3b82f6;
+        }
+
+        #timeDisplay {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        #thumbnail {
+            width: 320px;
+            height: 180px;
+            object-fit: cover;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        #songTitle {
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+        }
+    </style>
+</head>
+<body>
+    <h1>YouTube Audio Extractor with Playlist</h1>
+
+    <img id="thumbnail" src="" alt="Thumbnail">
+    
+    <div id="songTitle">Song Title</div> <!-- Song Title Display -->
+
+    <div id="playerControls">
+        <button id="prevBtn" onclick="playPrevious()" disabled>Previous</button>
+        <button id="playPauseBtn" onclick="togglePlayPause()" disabled>Play</button>
+        <button id="nextBtn" onclick="playNext()" disabled>Next</button>
+        <div id="progressBar" onclick="scrub(event)">
+            <div id="progress"></div>
+        </div>
+        <div id="timeDisplay">
+            <span id="currentTime">0:00</span>
+            <span id="totalDuration">0:00</span>
+        </div>
+    </div>
+    <a href="#" id="redirect">
+    <button style="text-align:center;">Queue</button></a>
+    <audio id="audioPlayer" style="display:none;"></audio>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        let isPlaying = false;
+        let currentTrackIndex = 0;
+        let playlist = [];
+
+        const audioPlayer = document.getElementById('audioPlayer');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const progressBar = document.getElementById('progress');
+        const playerControls = document.getElementById('playerControls');
+        const currentTimeDisplay = document.getElementById('currentTime');
+        const totalDurationDisplay = document.getElementById('totalDuration');
+        const thumbnailImage = document.getElementById('thumbnail');
+        const songTitleElement = document.getElementById('songTitle');
+        const redir = document.getElementById('redirect');
+        let ID = "";
+                 // Function to get videoId from URL
+        function getVideoIdFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('videoId');
+        }
+
+        // Function to fetch related songs and play the first one automatically
+        function fetchAndPlayRelatedSongs() {
+            const videoId = getVideoIdFromUrl();
+            
+            if (!videoId) {
+                alert("No YouTube video ID found in the URL.");
+                return;
+            }
+
+            const url = `https://defensive-amy-nitinbhujwa-05ddb0a0.koyeb.app/related_songs?video_id=${videoId}`;
+
+            redir.href = `queue.html?videoId=${videoId}`
+            
+            axios.get(url)
+                .then(response => {
+                    playlist = response.data;
+                    if (playlist.length > 0) {
+                        playTrack(0);
+                        playerControls.style.display = 'block';
+                        updateControlButtons();
+                    } else {
+                        alert("No related songs found.");
+                    }
+                })
+                .catch(error => {
+                    console.error(`Error retrieving related songs: ${error.message}`);
+                    alert("Failed to retrieve related songs.");
+                });
+        }
+
+        // Function to play a track by index
+        // Function to play a track by index with better error handling
+function playTrack(index) {
+    if (index >= 0 && index < playlist.length) {
+        currentTrackIndex = index;
+        const videoId = playlist[currentTrackIndex].videoId;
+        const songTitle = playlist[currentTrackIndex].title;
+        const url = `https://video.genyt.net/${videoId}`;
+        
+        const headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+        };
+
+        // Update song title and thumbnail with fallback for thumbnail resolution
+        songTitleElement.textContent = songTitle;
+        thumbnailImage.src = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+
+        thumbnailImage.onerror = () => {
+            thumbnailImage.src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+        };
+
+        axios.get(url, { headers })
+            .then(response => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(response.data, 'text/html');
+                const divs = doc.querySelectorAll('div.col-xl-3.col-lg-4.col-md-3.col-sm-4.col-6.mb-2');
+                let foundLink = false;
+
+                divs.forEach(div => {
+                    const linkTag = div.querySelector('a[download]');
+                    const downloadAttr = linkTag ? linkTag.getAttribute('download') : null;
+                    if (downloadAttr && downloadAttr.endsWith('m4a' || 'mp3')) {
+                        const href = linkTag.getAttribute('href');
+                        if (href) {
+                            foundLink = true;
+                            playAudio(href);
+                        }
+                    }
+                });
+
+                if (!foundLink) {
+                    alert("No M4A format URLs found.");
+                }
+            })
+            .catch(error => {
+                console.error(`Error retrieving the page: ${error.message}`);
+                alert("Failed to retrieve the audio URL.");
+            });
+    }
+}
+
+        // Function to play the audio using the extracted URL
+        function playAudio(url) {
+            audioPlayer.src = url;
+            audioPlayer.play();
+            isPlaying = true;
+            updatePlayPauseBtn();
+            playerControls.style.display = 'block';
+
+            audioPlayer.onloadeddata = () => {
+                playPauseBtn.disabled = false;
+                nextBtn.disabled = currentTrackIndex >= playlist.length - 1;
+                prevBtn.disabled = currentTrackIndex <= 0;
+                updateTimeDisplays();
+            };
+
+            audioPlayer.ontimeupdate = updateProgress;
+            audioPlayer.onended = playNext; // Automatically play next track when current one ends
+        }
+
+        // Function to play the next track
+        function playNext() {
+            if (currentTrackIndex < playlist.length - 1) {
+                playTrack(currentTrackIndex + 1);
+            }
+        }
+
+        // Function to play the previous track
+        function playPrevious() {
+            if (currentTrackIndex > 0) {
+                playTrack(currentTrackIndex - 1);
+            }
+        }
+
+        // Function to toggle play/pause
+        function togglePlayPause() {
+            if (isPlaying) {
+                audioPlayer.pause();
+                isPlaying = false;
+            } else {
+                audioPlayer.play();
+                isPlaying = true;
+            }
+            updatePlayPauseBtn();
+        }
+
+        // Function to update the play/pause button text
+        function updatePlayPauseBtn() {
+            playPauseBtn.textContent = isPlaying ? 'Pause' : 'Play';
+        }
+
+        // Function to update the progress bar and time displays
+        function updateProgress() {
+            const progressPercent = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+            progressBar.style.width = `${progressPercent}%`;
+            updateTimeDisplays();
+        }
+
+        // Function to update the current time and total duration displays
+        function updateTimeDisplays() {
+            const currentTime = formatTime(audioPlayer.currentTime);
+            const totalDuration = formatTime(audioPlayer.duration);
+
+            currentTimeDisplay.textContent = currentTime;
+            totalDurationDisplay.textContent = totalDuration;
+        }
+
+        // Function to format time in minutes and seconds
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        // Function to scrub through the audio when clicking on the progress bar
+        function scrub(event) {
+            const scrubTime = (event.offsetX / event.target.clientWidth) * audioPlayer.duration;
+            audioPlayer.currentTime = scrubTime;
+        }
+
+        // Function to enable/disable next/previous buttons based on current track index
+        function updateControlButtons() {
+            nextBtn.disabled = currentTrackIndex >= playlist.length - 1;
+            prevBtn.disabled = currentTrackIndex <= 0;
+        }
+
+        // Automatically fetch the playlist and play the first song when the page loads
+        window.onload = fetchAndPlayRelatedSongs;
+    </script>
+</body>
+</html>
+

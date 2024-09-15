@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Queue List</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .song-list {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+        }
+        .song-card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin: 10px;
+            width: 200px;
+            padding: 10px;
+            text-align: center;
+        }
+        .song-thumbnail {
+            width: 100%;
+            border-radius: 8px;
+        }
+        h5 {
+            margin: 10px 0 5px 0;
+            font-size: 16px;
+            color: #333;
+        }
+        h8 {
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Queue</h2>
+    <div class="song-list" id="songList"></div>
+
+    <script>
+    function getVideoIdFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('videoId');
+        }
+        async function fetchRelatedSongs(videoId) {
+            try {
+                const response = await fetch(`https://defensive-amy-nitinbhujwa-05ddb0a0.koyeb.app/related_songs?video_id=${videoId}`);
+                const data = await response.json();
+                displaySongs(data);
+            } catch (error) {
+                console.error('Error fetching related songs:', error);
+            }
+        }
+
+        function displaySongs(songs) {
+            const songList = document.getElementById('songList');
+            songList.innerHTML = ''; // Clear previous songs
+
+            songs.forEach(song => {
+                const songCard = document.createElement('div');
+                songCard.className = 'song-card';
+                
+                var createA = document.createElement('a');
+                var createAText = document.createTextNode(theCounter);
+                createA.setAttribute('href', "http://google.com");
+                
+                const thumbnail = document.createElement('img');
+                thumbnail.src = `https://img.youtube.com/vi/${song.videoId}/0.jpg`;
+                thumbnail.alt = song.title;
+                thumbnail.className = 'song-thumbnail';
+
+                const title = document.createElement('h5');
+                title.innerText = song.title;
+
+                const artist = document.createElement('h8');
+                artist.innerText = song.artist;
+
+                songCard.appendChild(thumbnail);
+                songCard.appendChild(title);
+                songCard.appendChild(artist);
+                createA.appendChild(createAText);
+                getTheTableTag.appendChild(createA);
+                songList.appendChild(songCard);
+            });
+        }
+
+        // Call the function with a sample video ID
+        let hhd = getVideoIdFromUrl();
+        fetchRelatedSongs(hhd);
+    </script>
+
+</body>
+</html>
+
